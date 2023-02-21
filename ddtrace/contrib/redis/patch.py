@@ -8,6 +8,7 @@ from ...internal.utils.formats import stringify_cache_args
 from ...pin import Pin
 from ..trace_utils import unwrap
 from .util import _trace_redis_cmd
+from .util import _trace_redis_execute_cluster_pipeline
 from .util import _trace_redis_execute_pipeline
 
 
@@ -38,6 +39,11 @@ def patch():
         _w("redis.client", "Pipeline.execute", traced_execute_pipeline(config.redis))
         _w("redis.client", "Pipeline.immediate_execute_command", traced_execute_command(config.redis))
         # Avoid mypy invalid syntax errors when parsing Python 2 files
+        if PY3 and redis.VERSION >= (4, 1, 0):
+            _w("redis.cluster", "RedisCluster.execute_command", traced_execute_command(config.redis))
+            _w("redis.cluster", "RedisCluster.pipeline", traced_pipeline)
+            _w("redis.cluster", "ClusterPipeline.execute", traced_execute_cluster_pipeline(config.redis))
+            Pin(service=None).onto(redis.cluster.RedisCluster)
         if PY3 and redis.VERSION >= (4, 2, 0):
             from .asyncio_patch import traced_async_execute_command
             from .asyncio_patch import traced_async_execute_pipeline
@@ -65,6 +71,10 @@ def unpatch():
             unwrap(redis.Redis, "pipeline")
             unwrap(redis.client.Pipeline, "execute")
             unwrap(redis.client.Pipeline, "immediate_execute_command")
+            if redis.VERSION >= (4, 1, 0):
+                unwrap(redis.cluster.RedisCluster, "execute_command")
+                unwrap(redis.cluster.RedisCluster, "pipeline")
+                unwrap(redis.cluster.ClusterPipeline, "execute")
             if redis.VERSION >= (4, 2, 0):
                 unwrap(redis.asyncio.client.Redis, "execute_command")
                 unwrap(redis.asyncio.client.Redis, "pipeline")
@@ -107,3 +117,18 @@ def traced_execute_pipeline(integration_config):
             return func(*args, **kwargs)
 
     return _traced_execute_pipeline
+
+
+def traced_execute_cluster_pipeline(integration_config):
+  """ remove below code, when https://github.com/DataDog/dd-trace-py/issues/5157 is resolved """
+  def _traced_execute_pipeline(func, instance, args, kwargs):
+    pin = Pin.get_from(instance)
+    if not pin or not pin.enabled():
+      return func(*args, **kwargs)
+
+    cmds = [stringify_cache_args(c.args) for c in instance.command_stack]
+    resource = "\n".join(cmds)
+    with _trace_redis_execute_cluster_pipeline(pin, integration_config, resource, instance):
+      return func(*args, **kwargs)
+
+  return _traced_execute_pipeline

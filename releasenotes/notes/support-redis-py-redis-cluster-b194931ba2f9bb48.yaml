@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    redis: Add support for RedisCluster, which deprecates RedisCluster in rediscluster

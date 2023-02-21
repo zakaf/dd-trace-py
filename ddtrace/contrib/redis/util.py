@@ -76,3 +76,23 @@ def _trace_redis_execute_pipeline(pin, config_integration, resource, instance):
         span.set_tag(ANALYTICS_SAMPLE_RATE_KEY, config_integration.get_analytics_sample_rate())
         # yield the span in case the caller wants to build on span
         yield span
+
+
+@contextmanager
+def _trace_redis_execute_cluster_pipeline(pin, config_integration, resource, instance):
+    """Create a span for the execute pipeline method and tag it"""
+    with pin.tracer.trace(
+        redisx.CMD,
+        resource=resource,
+        service=trace_utils.ext_service(pin, config_integration),
+        span_type=SpanTypes.REDIS,
+    ) as span:
+        span.set_tag_str(COMPONENT, config_integration.integration_name)
+        span.set_tag_str(db.SYSTEM, redisx.APP)
+        span.set_tag(SPAN_MEASURED_KEY)
+        span.set_tag_str(redisx.RAWCMD, resource)
+        span.set_metric(redisx.PIPELINE_LEN, len(instance.command_stack))
+        # set analytics sample rate if enabled
+        span.set_tag(ANALYTICS_SAMPLE_RATE_KEY, config_integration.get_analytics_sample_rate())
+        # yield the span in case the caller wants to build on span
+        yield span

@@ -2086,7 +2086,8 @@ venv = Venv(
             venvs=[
                 Venv(
                     pys=select_pys(),
-                    command="pytest {cmdargs} --ignore-glob='*asyncio*' tests/contrib/redis",
+                    command="pytest {cmdargs} --ignore=tests/contrib/redis/test_redis_asyncio.py "
+                            "--ignore=tests/contrib/redis/test_redis_cluster.py tests/contrib/redis",
                     pkgs={
                         "redis": [
                             ">=2.10,<2.11",
@@ -2096,6 +2097,25 @@ venv = Venv(
                             ">=3.3,<3.4",
                             ">=3.4,<3.5",
                             ">=3.5,<3.6",
+                        ],
+                    },
+                ),
+                Venv(
+                    pys=select_pys(min_version="3.6"),
+                    command="pytest {cmdargs} --ignore=tests/contrib/redis/test_redis_asyncio.py "
+                            "--ignore=tests/contrib/redis/test_redis_cluster.py tests/contrib/redis",
+                    pkgs={
+                        "redis": [
+                            ">=4.0,<4.1",
+                        ],
+                    },
+                ),
+                Venv(
+                    pys=select_pys(min_version="3.6"),
+                    command="pytest {cmdargs} --ignore=tests/contrib/redis/test_redis_asyncio.py tests/contrib/redis",
+                    pkgs={
+                        "redis": [
+                            ">=4.1,<4.2",
                         ],
                     },
                 ),
